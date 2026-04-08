@@ -1,25 +1,24 @@
-version: "3.9"
-
 services:
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:16
+  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: invoice_sync
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-invoice_sync}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-invoice_sync}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
-  # ── API ─────────────────────────────────────────────────────────────────────
+  # ── API ──────────────────────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -30,10 +29,17 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/invoice_sync
+      # Override DATABASE_URL to use the internal Docker service name "db"
+      # so the API always connects to the Postgres container, regardless of
+      # what is set in .env (which may point to localhost for local dev).
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-invoice_sync}
+      # Hint for start.sh — which host/port to wait on
+      DB_HOST: db
+      DB_PORT: "5432"
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
 
 volumes:
   pgdata:
+    driver: local
