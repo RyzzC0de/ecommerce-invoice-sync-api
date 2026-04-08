@@ -57,8 +57,7 @@
   ### 1 — Clone and set up the environment
 
   ```bash
-  # <!-- your repo URL here -->
-  git clone <your-repo-url>
+  git clone https://github.com/RyzzC0de/ecommerce-invoice-sync-api.git
   cd ecommerce-invoice-sync-api
 
   python -m venv .venv
