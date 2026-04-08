@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Factura {{ invoice.invoice_number }}</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #1a1a2e;
+      background: #ffffff;
+      padding: 0;
+    }
+
+    /* ── Page layout ──────────────────────────────────────────────────── */
+    @page {
+      size: A4;
+      margin: 15mm 18mm 20mm 18mm;
+    }
+
+    .page { width: 100%; }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 3px solid #16213e;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .brand h1 {
+      font-size: 22pt;
+      font-weight: 800;
+      color: #16213e;
+      letter-spacing: -0.5px;
+    }
+
+    .brand p {
+      font-size: 8pt;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .invoice-meta {
+      text-align: right;
+    }
+
+    .invoice-meta .invoice-number {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #0f3460;
+    }
+
+    .invoice-meta table {
+      margin-top: 6px;
+      margin-left: auto;
+      font-size: 8.5pt;
+      color: #374151;
+    }
+
+    .invoice-meta td:first-child {
+      font-weight: 600;
+      padding-right: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Status badge ─────────────────────────────────────────────────── */
+    .status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 6px;
+    }
+
+    .status-issued  { background: #d1fae5; color: #065f46; }
+    .status-paid    { background: #dbeafe; color: #1e40af; }
+    .status-overdue { background: #fee2e2; color: #991b1b; }
+    .status-void    { background: #f3f4f6; color: #6b7280; }
+    .status-draft   { background: #fef3c7; color: #92400e; }
+    .status-sent    { background: #ede9fe; color: #5b21b6; }
+
+    /* ── Parties section ──────────────────────────────────────────────── */
+    .parties {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .party-box {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+
+    .party-box h3 {
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #94a3b8;
+      font-weight: 700;
+      margin-bottom: 7px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 5px;
+    }
+
+    .party-box p {
+      font-size: 9pt;
+      line-height: 1.55;
+      color: #1e293b;
+    }
+
+    .party-box .label {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Line items table ─────────────────────────────────────────────── */
+    .items-section { margin-bottom: 20px; }
+
+    .items-section h2 {
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #94a3b8;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+
+    .items-table thead tr {
+      background: #16213e;
+      color: #ffffff;
+    }
+
+    .items-table thead th {
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 7.5pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .items-table thead th.num { text-align: right; }
+
+    .items-table tbody tr { border-bottom: 1px solid #e2e8f0; }
+
+    .items-table tbody tr:last-child { border-bottom: none; }
+
+    .items-table tbody tr:nth-child(even) { background: #f8fafc; }
+
+    .items-table tbody td {
+      padding: 9px 10px;
+      vertical-align: middle;
+      color: #374151;
+    }
+
+    .items-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .sku {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      font-weight: 600;
+      display: block;
+    }
+
+    .item-name { font-weight: 600; color: #1e293b; }
+
+    /* ── Totals ───────────────────────────────────────────────────────── */
+    .totals-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 28px;
+    }
+
+    .totals-table {
+      width: 280px;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+    }
+
+    .totals-table td {
+      padding: 5px 10px;
+      color: #374151;
+    }
+
+    .totals-table td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .totals-table .subtotal-row td { color: #6b7280; font-size: 9pt; }
+    .totals-table .tax-row td     { color: #6b7280; font-size: 9pt; }
+
+    .totals-table .divider td {
+      border-top: 2px solid #16213e;
+      padding-top: 7px;
+    }
+
+    .totals-table .grand-row td {
+      font-size: 12pt;
+      font-weight: 800;
+      color: #0f3460;
+      padding-top: 4px;
+    }
+
+    .currency-tag {
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-left: 4px;
+    }
+
+    /* ── Notes ────────────────────────────────────────────────────────── */
+    .notes-section {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+      margin-bottom: 24px;
+    }
+
+    .notes-section h3 {
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: #94a3b8;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .notes-section p {
+      font-size: 9pt;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────── */
+    .footer {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.5pt;
+      color: #94a3b8;
+    }
+
+    .footer .ext-ref {
+      font-family: monospace;
+      font-size: 7pt;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="brand">
+      <h1>FACTURA</h1>
+      <p>Ecommerce Invoice Sync API &mdash; Sistema de Facturación</p>
+    </div>
+    <div class="invoice-meta">
+      <div class="invoice-number">{{ invoice.invoice_number }}</div>
+      <table>
+        <tr>
+          <td>Fecha emisión</td>
+          <td>{{ invoice.issue_date | strftime }}</td>
+        </tr>
+        <tr>
+          <td>Fecha vencimiento</td>
+          <td>{{ invoice.due_date | strftime }}</td>
+        </tr>
+        <tr>
+          <td>Moneda</td>
+          <td>{{ invoice.currency }}</td>
+        </tr>
+      </table>
+      <span class="status-badge status-{{ invoice.status }}">{{ invoice.status }}</span>
+    </div>
+  </div>
+
+  <!-- ── Parties ─────────────────────────────────────────────────────────── -->
+  <div class="parties">
+    <div class="party-box">
+      <h3>Facturado a</h3>
+      <p class="item-name">{{ invoice.customer_name }}</p>
+      {% if invoice.customer_tax_id %}
+      <p><span class="label">NIF/CIF:</span> {{ invoice.customer_tax_id }}</p>
+      {% endif %}
+      <p><span class="label">Email:</span> {{ invoice.customer_email }}</p>
+      <p style="margin-top:6px; color:#4b5563;">{{ invoice.billing_address }}</p>
+    </div>
+
+    <div class="party-box">
+      <h3>Referencia de pedido</h3>
+      {% if invoice.external_invoice_id %}
+      <p><span class="label">Ref. externa:</span></p>
+      <p style="font-family:monospace; font-size:8.5pt;">{{ invoice.external_invoice_id }}</p>
+      {% endif %}
+      <p style="margin-top:6px;"><span class="label">ID de pedido:</span></p>
+      <p style="font-family:monospace; font-size:7.5pt; color:#6b7280;">{{ invoice.order_id }}</p>
+      {% if invoice.notes %}
+      <p style="margin-top:6px;"><span class="label">Notas:</span> {{ invoice.notes }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Line items ──────────────────────────────────────────────────────── -->
+  <div class="items-section">
+    <h2>Detalle de líneas</h2>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:35%">Descripción / SKU</th>
+          <th class="num" style="width:8%">Cant.</th>
+          <th class="num" style="width:14%">Precio unit.</th>
+          <th class="num" style="width:10%">IVA %</th>
+          <th class="num" style="width:14%">Base impon.</th>
+          <th class="num" style="width:14%">Cuota IVA</th>
+          <th class="num" style="width:14%">Total línea</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>
+            <span class="item-name">{{ item.name }}</span>
+            <span class="sku">{{ item.sku }}</span>
+          </td>
+          <td class="num">{{ item.quantity }}</td>
+          <td class="num">{{ "%.2f"|format(item.unit_price|float) }}</td>
+          <td class="num">{{ "%.0f"|format(item.tax_rate|float * 100) }}%</td>
+          <td class="num">{{ "%.2f"|format(item.subtotal|float) }}</td>
+          <td class="num">{{ "%.2f"|format(item.tax_amount|float) }}</td>
+          <td class="num"><strong>{{ "%.2f"|format(item.total|float) }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Totals ──────────────────────────────────────────────────────────── -->
+  <div class="totals-wrapper">
+    <table class="totals-table">
+      <tr class="subtotal-row">
+        <td>Base imponible</td>
+        <td>{{ "%.2f"|format(invoice.subtotal|float) }} <span class="currency-tag">{{ invoice.currency }}</span></td>
+      </tr>
+      <tr class="tax-row">
+        <td>IVA (cuota total)</td>
+        <td>{{ "%.2f"|format(invoice.tax_total|float) }} <span class="currency-tag">{{ invoice.currency }}</span></td>
+      </tr>
+      <tr class="divider"><td></td><td></td></tr>
+      <tr class="grand-row">
+        <td>TOTAL</td>
+        <td>{{ "%.2f"|format(invoice.grand_total|float) }} <span class="currency-tag">{{ invoice.currency }}</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Notes ──────────────────────────────────────────────────────────── -->
+  {% if invoice.notes %}
+  <div class="notes-section">
+    <h3>Observaciones</h3>
+    <p>{{ invoice.notes }}</p>
+  </div>
+  {% endif %}
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <div class="footer">
+    <span>Documento generado electrónicamente &mdash; válido sin firma manuscrita</span>
+    {% if invoice.external_invoice_id %}
+    <span class="ext-ref">EXT: {{ invoice.external_invoice_id }}</span>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>
